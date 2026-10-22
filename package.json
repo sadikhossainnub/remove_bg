@@ -1,0 +1,17 @@
+{
+  "name": "remove-bg",
+  "version": "1.0.0",
+  "description": "AI Background Removal — Personal Tool",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"REMBG,SD,API,WEB\" --prefix-colors \"yellow,blue,cyan,magenta\" \"npm run dev:rembg\" \"npm run dev:sd\" \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:rembg": "fuser -k 5000/tcp 2>/dev/null; sleep 0.5 && python3 api/src/services/rembg_server.py",
+    "dev:sd": "fuser -k 5001/tcp 2>/dev/null; sleep 0.5 && python3 api/src/services/sd_server.py",
+    "dev:api": "cd api && npm run dev",
+    "dev:web": "cd app && npm run dev",
+    "install:all": "npm install --prefix api && npm install --prefix app"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

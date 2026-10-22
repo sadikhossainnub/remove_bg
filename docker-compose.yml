@@ -1,0 +1,86 @@
+services:
+  # ─── 1. Next.js Frontend ───────────────────────────────────────
+  web:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      - REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    depends_on:
+      - api
+    restart: always
+
+  # ─── 2. Express Backend API ────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - REMBG_HOST=rembg
+      - REMBG_PORT=5000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-removebg}
+      - REDIS_URL=redis://redis:6379
+      - SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL:-admin@removebg.local}
+      - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-superadmin123}
+      - SUPERADMIN_SECRET=${SUPERADMIN_SECRET:-superadmin123}
+    depends_on:
+      - rembg
+      - postgres
+      - redis
+    restart: always
+
+  # ─── 3. rembg AI Microservice (with Pre-baked AI Model) ───────
+  rembg:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.rembg
+    ports:
+      - "5000:5000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5000
+      - REMBG_MODEL=isnet-general-use
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - rembg_cache:/root/.u2net
+    restart: always
+
+  # ─── 4. PostgreSQL Database ────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-removebg}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: always
+
+  # ─── 5. Redis Cache / Job Queue ────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  pg_data:
+  redis_data:
+  rembg_cache:

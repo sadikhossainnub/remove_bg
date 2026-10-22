@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  name       String?
+  password   String    // bcrypt hashed
+  role       String    @default("user") // "user" | "admin" | "superadmin"
+  plan       String    @default("free") // free | pro | enterprise
+  credits    Int       @default(100)
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  apiKeys    ApiKey[]
+  jobs       Job[]
+  usageLogs  UsageLog[]
+
+  @@map("users")
+}
+
+model ApiKey {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  name      String
+  keyHash   String    @unique @map("key_hash")   // SHA-256 of raw key
+  prefix    String                                // shown in dashboard
+  isActive  Boolean   @default(true) @map("is_active")
+  lastUsed  DateTime? @map("last_used")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usageLogs UsageLog[]
+
+  @@map("api_keys")
+}
+
+model Job {
+  id           String    @id @default(uuid())
+  userId       String?   @map("user_id")
+  status       String    @default("pending")  // pending | processing | done | failed
+  originalUrl  String    @map("original_url")
+  resultUrl    String?   @map("result_url")
+  fileSize     Int?      @map("file_size")
+  errorMessage String?   @map("error_message")
+  webhookUrl   String?   @map("webhook_url")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  completedAt  DateTime? @map("completed_at")
+
+  user         User?     @relation(fields: [userId], references: [id])
+
+  @@map("jobs")
+}
+
+model UsageLog {
+  id        BigInt    @id @default(autoincrement())
+  userId    String    @map("user_id")
+  apiKeyId  String?   @map("api_key_id")
+  jobId     String?   @map("job_id")
+  date      DateTime  @default(now()) @db.Date
+  credits   Int       @default(1)
+
+  user      User      @relation(fields: [userId], references: [id])
+  apiKey    ApiKey?   @relation(fields: [apiKeyId], references: [id])
+
+  @@map("usage_logs")
+}
